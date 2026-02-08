@@ -6,6 +6,8 @@
 Лист "Timers" — активные таймеры напоминаний.
 """
 
+import json
+import os
 import time
 import logging
 from datetime import datetime
@@ -26,10 +28,19 @@ _questions_cache_time: float = 0
 
 
 def _get_client() -> gspread.Client:
-    """Создать и вернуть авторизованный клиент gspread."""
-    creds = Credentials.from_service_account_file(
-        config.CREDENTIALS_FILE, scopes=SCOPES
-    )
+    """Создать и вернуть авторизованный клиент gspread.
+
+    Читает credentials из переменной окружения GOOGLE_CREDENTIALS (JSON-строка)
+    или из файла credentials.json если переменная не задана.
+    """
+    google_creds_json = os.getenv('GOOGLE_CREDENTIALS')
+    if google_creds_json:
+        creds_dict = json.loads(google_creds_json)
+        creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+    else:
+        creds = Credentials.from_service_account_file(
+            config.CREDENTIALS_FILE, scopes=SCOPES
+        )
     return gspread.authorize(creds)
 
 
