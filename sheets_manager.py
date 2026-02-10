@@ -219,12 +219,18 @@ def get_user_progress(telegram_id: int) -> dict:
     result = {'unique_id': user.get('unique_id', '')}
 
     # Проверяем заполненность полей регистрации
-    reg_fields = ['name', 'age', 'education']
+    reg_fields = ['name', 'age', 'gender', 'education', 'financial', 'region']
     missing = [f for f in reg_fields if not user.get(f)]
 
     if missing:
         result['stage'] = 'registration'
         result['missing_fields'] = missing
+        return result
+
+    # Все поля заполнены, но тестирование ещё не начато — нужно подтверждение
+    if not user.get('test_start_time'):
+        result['stage'] = 'registration'
+        result['missing_fields'] = []
         return result
 
     # Проверяем прогресс тестирования

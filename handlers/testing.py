@@ -1,9 +1,10 @@
 """Хэндлеры тестирования.
 
-Поддерживает 3 типа вопросов: number, choice, yesno.
+Поддерживает 2 типа вопросов: choice, text.
 Навигация вперёд/назад, прогресс-бар, сохранение ответов.
 """
 
+import asyncio
 import logging
 from datetime import datetime
 
@@ -15,16 +16,19 @@ import sheets_manager
 from states import Testing
 from keyboards.user_kb import (
     question_choice_keyboard,
-    question_yesno_keyboard,
-    question_number_keyboard,
+    question_text_keyboard,
     website_button,
+    final_completed_keyboard,
 )
-from utils.validators import validate_number_answer
 from utils.formatters import format_question
+from handlers.timers import start_timer
 import config
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+# Мьютексы для защиты от быстрых повторных кликов
+_answer_locks: dict[int, asyncio.Lock] = {}
 
 
 async def start_testing_flow(
@@ -119,12 +123,9 @@ async def _show_question(
     if q_type == 'choice':
         options = [o.strip() for o in str(question['options']).split('|') if o.strip()]
         keyboard = question_choice_keyboard(options, show_back=show_back)
-    elif q_type == 'yesno':
-        keyboard = question_yesno_keyboard(show_back=show_back)
-    else:  # number
-        keyboard = question_number_keyboard(show_back=show_back)
-        if q_type == 'number':
-            text += '\n\n✏️ Введите число:'
+    else:  # text
+        keyboard = question_text_keyboard(show_back=show_back)
+        text += '\n\n✏️ Введите ваш ответ:'
 
     if edit:
         try:
@@ -147,6 +148,8 @@ async def _save_and_advance(
 
     question = questions[current_index]
     order = question['order_number']
+    total = len(questions)
+    q_num = current_index + 1
 
     # Сохраняем ответ
     answers[order] = answer
@@ -161,10 +164,24 @@ async def _save_and_advance(
     except Exception as e:
         logger.error(f'Ошибка сохранения ответа: {e}', exc_info=True)
 
-    # Показываем следующий вопрос
+    # Фиксируем ответ на текущем сообщении (убираем кнопки, показываем ответ)
+    answered_text = (
+        f'📊 Вопрос {q_num} из {total}\n\n'
+        f'{question["question_text"]}\n\n'
+        f'✅ Ваш ответ: {answer}'
+    )
+
     if isinstance(message_or_callback, CallbackQuery):
-        await _show_question(message_or_callback.message, state, edit=True)
+        msg = message_or_callback.message
+        try:
+            await msg.edit_text(answered_text)
+        except Exception:
+            pass
+        # Следующий вопрос — новым сообщением
+        await _show_question(msg, state, edit=False)
     else:
+        # Текстовый ответ (number) — отправляем подтверждение и новый вопрос
+        await message_or_callback.reply(f'✅ Ваш ответ: {answer}')
         await _show_question(message_or_callback, state, edit=False)
 
 
@@ -193,23 +210,21 @@ async def _finish_testing(message: Message, state: FSMContext, edit: bool):
         '1. Перейдите на сайт по ссылке ниже\n'
         f'2. Введите ваш логин: {unique_id}\n'
         '3. Пройдите тестирование по критическому мышлению\n\n'
-        '⏰ После перехода на сайт у вас будет 60 минут '
-        'на прохождение второй части исследования. '
-        'Я буду отправлять вам напоминания.\n\n'
-        '❗️ Важно: нажмите кнопку "Я перешёл на сайт", '
-        'чтобы начать таймер'
+        '⏰ У вас 60 минут на прохождение второй части.\n'
+        'Я буду отправлять вам напоминания.'
     )
 
     keyboard = website_button(config.WEBSITE_URL)
+    await message.answer(text, reply_markup=keyboard)
 
-    if edit:
-        try:
-            await message.edit_text(text, reply_markup=keyboard)
-        except Exception:
-            await message.answer(text, reply_markup=keyboard)
-    else:
-        await message.answer(text, reply_markup=keyboard)
+    # Запускаем таймер сразу
+    await start_timer(message.bot, telegram_id, unique_id)
 
+    await message.answer(
+        '⏰ Таймер запущен!\n\n'
+        'После завершения тестирования на сайте нажмите кнопку ниже:',
+        reply_markup=final_completed_keyboard(),
+    )
     await state.set_state(None)
 
 
@@ -226,58 +241,58 @@ async def on_start_testing(callback: CallbackQuery, state: FSMContext):
 
 # ===== Обработка ответов на вопросы =====
 
+def _get_answer_lock(telegram_id: int) -> asyncio.Lock:
+    """Получить мьютекс для пользователя."""
+    if telegram_id not in _answer_locks:
+        _answer_locks[telegram_id] = asyncio.Lock()
+    return _answer_locks[telegram_id]
+
+
 @router.callback_query(Testing.answering, F.data.startswith('ans_c_'))
 async def on_answer_choice(callback: CallbackQuery, state: FSMContext):
     """Обработка ответа через inline-кнопки (choice) — по индексу."""
-    await callback.answer()
-
-    # Формат: ans_c_{index}
-    idx = int(callback.data.split('_')[-1])
-    data = await state.get_data()
-    question = data['questions'][data['current_index']]
-    options = [o.strip() for o in str(question['options']).split('|') if o.strip()]
-
-    if idx < 0 or idx >= len(options):
+    lock = _get_answer_lock(callback.from_user.id)
+    if lock.locked():
+        await callback.answer()
         return
 
-    answer = options[idx]
-    await _save_and_advance(callback, state, answer)
+    async with lock:
+        await callback.answer()
 
+        # Формат: ans_c_{index}
+        idx = int(callback.data.split('_')[-1])
+        data = await state.get_data()
+        question = data['questions'][data['current_index']]
+        options = [o.strip() for o in str(question['options']).split('|') if o.strip()]
 
-@router.callback_query(Testing.answering, F.data.startswith('answer_'))
-async def on_answer_yesno(callback: CallbackQuery, state: FSMContext):
-    """Обработка ответа Да/Нет."""
-    await callback.answer()
-    answer = 'Да' if callback.data == 'answer_yes' else 'Нет'
-    await _save_and_advance(callback, state, answer)
+        if idx < 0 or idx >= len(options):
+            return
+
+        answer = options[idx]
+        await _save_and_advance(callback, state, answer)
 
 
 @router.message(Testing.answering)
 async def on_answer_text(message: Message, state: FSMContext):
-    """Обработка текстового ответа (number)."""
-    data = await state.get_data()
-    questions = data['questions']
-    current_index = data['current_index']
-
-    if current_index >= len(questions):
+    """Обработка текстового ответа."""
+    lock = _get_answer_lock(message.from_user.id)
+    if lock.locked():
         return
 
-    question = questions[current_index]
+    async with lock:
+        data = await state.get_data()
+        questions = data['questions']
+        current_index = data['current_index']
 
-    if question['question_type'] == 'number':
-        is_valid, error = validate_number_answer(message.text or '')
-        if not is_valid:
-            await message.answer(error)
+        if current_index >= len(questions):
             return
-        answer = message.text.strip()
-    else:
-        # Для choice/yesno — текстовый ввод тоже принимаем
+
         answer = (message.text or '').strip()
         if not answer:
-            await message.answer('❌ Пожалуйста, выберите вариант ответа.')
+            await message.answer('❌ Пожалуйста, введите ответ.')
             return
 
-    await _save_and_advance(message, state, answer)
+        await _save_and_advance(message, state, answer)
 
 
 # ===== Кнопка "Назад" при тестировании =====
@@ -285,13 +300,19 @@ async def on_answer_text(message: Message, state: FSMContext):
 @router.callback_query(Testing.answering, F.data == 'test_back')
 async def on_test_back(callback: CallbackQuery, state: FSMContext):
     """Вернуться к предыдущему вопросу."""
-    data = await state.get_data()
-    current_index = data['current_index']
-
-    if current_index <= 0:
-        await callback.answer('Это первый вопрос')
+    lock = _get_answer_lock(callback.from_user.id)
+    if lock.locked():
+        await callback.answer()
         return
 
-    await callback.answer()
-    await state.update_data(current_index=current_index - 1)
-    await _show_question(callback.message, state, edit=True)
+    async with lock:
+        data = await state.get_data()
+        current_index = data['current_index']
+
+        if current_index <= 0:
+            await callback.answer('Это первый вопрос')
+            return
+
+        await callback.answer()
+        await state.update_data(current_index=current_index - 1)
+        await _show_question(callback.message, state, edit=False)

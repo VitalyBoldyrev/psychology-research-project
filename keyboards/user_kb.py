@@ -46,6 +46,66 @@ EDUCATION_MAP = {
 }
 
 
+def gender_keyboard() -> InlineKeyboardMarkup:
+    """Inline-кнопки для выбора пола."""
+    buttons = [
+        [InlineKeyboardButton(text='Мужской', callback_data='gender_male')],
+        [InlineKeyboardButton(text='Женский', callback_data='gender_female')],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+GENDER_MAP = {
+    'gender_male': 'Мужской',
+    'gender_female': 'Женский',
+}
+
+
+def financial_keyboard() -> InlineKeyboardMarkup:
+    """Inline-кнопки для оценки финансового положения."""
+    buttons = [
+        [InlineKeyboardButton(
+            text='Денег не хватает даже на питание',
+            callback_data='fin_1')],
+        [InlineKeyboardButton(
+            text='На питание хватает, но покупка одежды затруднительна',
+            callback_data='fin_2')],
+        [InlineKeyboardButton(
+            text='На питание и одежду хватает, но покупка крупной бытовой техники затруднительна',
+            callback_data='fin_3')],
+        [InlineKeyboardButton(
+            text='Можем позволить крупную бытовую технику, но не новый автомобиль',
+            callback_data='fin_4')],
+        [InlineKeyboardButton(
+            text='Можем позволить себе всё, кроме дорогих приобретений (квартира, дом)',
+            callback_data='fin_5')],
+        [InlineKeyboardButton(
+            text='Можем позволить себе всё, что захотим',
+            callback_data='fin_6')],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+FINANCIAL_MAP = {
+    'fin_1': 'Денег не хватает даже на питание',
+    'fin_2': 'На питание хватает, но покупка одежды затруднительна',
+    'fin_3': 'На питание и одежду хватает, но покупка крупной бытовой техники затруднительна',
+    'fin_4': 'Можем позволить крупную бытовую технику, но не новый автомобиль',
+    'fin_5': 'Можем позволить себе всё, кроме дорогих приобретений (квартира, дом)',
+    'fin_6': 'Можем позволить себе всё, что захотим',
+}
+
+
+def confirmation_keyboard() -> InlineKeyboardMarkup:
+    """Кнопки подтверждения / изменения данных регистрации."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text='✅ Подтвердить', callback_data='reg_confirm')],
+        [InlineKeyboardButton(
+            text='✏️ Изменить', callback_data='reg_edit')],
+    ])
+
+
 def back_button_keyboard() -> InlineKeyboardMarkup:
     """Кнопка 'Назад' для навигации при регистрации."""
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -71,24 +131,8 @@ def question_choice_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def question_yesno_keyboard(show_back: bool = True) -> InlineKeyboardMarkup:
-    """Кнопки Да/Нет для вопросов типа yesno."""
-    buttons = [
-        [
-            InlineKeyboardButton(text='Да', callback_data='answer_yes'),
-            InlineKeyboardButton(text='Нет', callback_data='answer_no'),
-        ],
-    ]
-    if show_back:
-        buttons.append([InlineKeyboardButton(
-            text='◀️ Изменить предыдущий ответ',
-            callback_data='test_back'
-        )])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-
-def question_number_keyboard(show_back: bool = True) -> InlineKeyboardMarkup:
-    """Кнопка 'Назад' при вводе числового ответа."""
+def question_text_keyboard(show_back: bool = True) -> InlineKeyboardMarkup:
+    """Кнопка 'Назад' при вводе текстового ответа."""
     if not show_back:
         return None
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -103,10 +147,6 @@ def website_button(url: str) -> InlineKeyboardMarkup:
     """Кнопка перехода на сайт."""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='🌐 Перейти на сайт', url=url)],
-        [InlineKeyboardButton(
-            text='✅ Я перешёл на сайт',
-            callback_data='started_website'
-        )],
     ])
 
 

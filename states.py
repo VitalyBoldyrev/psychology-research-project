@@ -8,7 +8,11 @@ class Registration(StatesGroup):
     waiting_for_phone = State()      # ожидание номера телефона
     waiting_for_name = State()       # ожидание имени
     waiting_for_age = State()        # ожидание возраста
+    waiting_for_gender = State()     # ожидание выбора пола
     waiting_for_education = State()  # ожидание выбора образования
+    waiting_for_financial = State()  # ожидание оценки финансового положения
+    waiting_for_region = State()     # ожидание региона проживания
+    waiting_for_confirmation = State()  # подтверждение введённых данных
 
 
 class Testing(StatesGroup):

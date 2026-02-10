@@ -210,9 +210,8 @@ async def admin_add_question_type(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
     type_map = {
-        'qtype_number': 'number',
         'qtype_choice': 'choice',
-        'qtype_yesno': 'yesno',
+        'qtype_text': 'text',
     }
     q_type = type_map.get(callback.data)
     if not q_type:
@@ -227,7 +226,7 @@ async def admin_add_question_type(callback: CallbackQuery, state: FSMContext):
         )
         await state.set_state(AdminPanel.adding_question_options)
     else:
-        # Сохраняем вопрос сразу
+        # text — сохраняем вопрос сразу
         await _save_new_question(callback.message, state, edit=True)
 
 
@@ -306,7 +305,7 @@ async def admin_edit_question(callback: CallbackQuery, state: FSMContext):
     await state.update_data(editing_question_id=question_id)
 
     status = '✅ Активен' if question['is_active'] else '❌ Неактивен'
-    type_names = {'number': '🔢 Число', 'choice': '📋 Выбор', 'yesno': '✅❌ Да/Нет'}
+    type_names = {'choice': '📋 Выбор', 'text': '✏️ Текст'}
     q_type_name = type_names.get(question['question_type'], question['question_type'])
 
     text = (
@@ -389,9 +388,8 @@ async def editq_type_save(callback: CallbackQuery, state: FSMContext):
     """Сохранить новый тип вопроса."""
     await callback.answer()
     type_map = {
-        'qtype_number': 'number',
         'qtype_choice': 'choice',
-        'qtype_yesno': 'yesno',
+        'qtype_text': 'text',
     }
     q_type = type_map.get(callback.data)
     if not q_type:

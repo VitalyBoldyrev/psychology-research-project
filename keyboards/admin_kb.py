@@ -74,11 +74,10 @@ def questions_list_keyboard(
 def question_type_keyboard() -> InlineKeyboardMarkup:
     """Выбор типа вопроса при добавлении."""
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='🔢 Число', callback_data='qtype_number')],
         [InlineKeyboardButton(
             text='📋 Выбор варианта', callback_data='qtype_choice')],
         [InlineKeyboardButton(
-            text='✅❌ Да/Нет', callback_data='qtype_yesno')],
+            text='✏️ Текстовый ответ', callback_data='qtype_text')],
         [InlineKeyboardButton(
             text='◀️ Отмена', callback_data='admin_questions')],
     ])

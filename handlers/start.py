@@ -5,8 +5,11 @@
 2. Получение username или запрос телефона
 3. Запрос имени
 4. Запрос возраста (14-100)
-5. Выбор образования
-6. Переход к тестированию
+5. Выбор пола
+6. Выбор образования
+7. Оценка финансового положения
+8. Регион проживания
+9. Переход к тестированию
 """
 
 import asyncio
@@ -22,10 +25,15 @@ from states import Registration, Testing
 from keyboards.user_kb import (
     phone_keyboard,
     education_keyboard,
+    gender_keyboard,
+    financial_keyboard,
+    confirmation_keyboard,
     back_button_keyboard,
     resume_testing_keyboard,
     website_button,
     EDUCATION_MAP,
+    GENDER_MAP,
+    FINANCIAL_MAP,
     REMOVE_KEYBOARD,
 )
 from utils.validators import validate_name, validate_age
@@ -53,8 +61,9 @@ async def cmd_start(message: Message, state: FSMContext):
         return
 
     async with lock:
-        await message.answer('⏳ Подождите, готовлю задачи...')
+        loading_msg = await message.answer('⏳ Подождите, готовлю задачи...')
         await _handle_start(message, state, telegram_id, username)
+        await loading_msg.delete()
 
 
 async def _handle_start(message: Message, state: FSMContext, telegram_id: int, username: str | None):
@@ -100,9 +109,16 @@ async def _handle_start(message: Message, state: FSMContext, telegram_id: int, u
         # Всё пройдено — показываем логин
         unique_id = progress['unique_id']
         await message.answer(
-            f'👋 Вы уже прошли тестирование!\n\n'
-            f'🔑 Ваш логин для сайта: {unique_id}\n\n'
-            f'Перейдите на сайт для прохождения второй части:',
+            '🌟 Время пришло!\n\n'
+            'Вам необходимо пройти тестирование на нашем сайте: '
+            'https://4k.hse.ru/\n\n'
+            'Спустя некоторое время, я у вас уточню об успехах '
+            'прохождения.\n\n'
+            'Нам очень важно, чтобы все методики были пройдены, '
+            'иначе исследование будет неполным.\n\n'
+            'Когда закончите, просто нажмите кнопку ниже, '
+            'и уведомления приходить не будут. '
+            'Спасибо за ваши ответы. Удачи!',
             reply_markup=website_button(config.WEBSITE_URL),
         )
 
@@ -113,13 +129,19 @@ async def _start_registration(
 ):
     """Начать регистрацию нового пользователя."""
     await message.answer(
-        '👋 Здравствуйте! Добро пожаловать в исследование '
-        'логического мышления!\n\n'
+        '👋 Здравствуйте! '
+        'Нам очень важно знать ваше мнение по поводу изучения эффективности решения логическиех задач, поэтому мы просим вас принять участие в нашем исследовании, ответив на вопросы.'
+        'Это не займет много времени ~20 минут, но даст вам конкурентное преимущество в любой области и жизненной ситуации, поскольку\n'
+        '- вы получите тренировку навыка объективности и внимательности к деталям а также \n'
+        '- разовьете навык критического самоконтроля: научитесь проверять выводы и исправлять ошибки до их фиксации.\n\n'
+        'Параллельно вы поможете создать эффективные образовательные инструменты, способствующие развитию науки.'
+        'Пожалуйста, отвечайте на вопросы без стеснения, честно и открыто. Участие в исследовании строго конфиденциально. Персональные ответы нигде опубликованы не будут. '
         'Вам предстоит:\n'
         '1️⃣ Заполнить краткую анкету\n'
-        '2️⃣ Ответить на вопросы по логическому мышлению\n'
+        '2️⃣ Решить задачи\n'
         '3️⃣ Пройти тестирование на сайте\n\n'
-        'Давайте начнём! ✨',
+        'Благодарим за участие!✨'
+        'Если у вас что-то сломалось или есть вопросы, то вы можете мне написать: @aisstti',
         reply_markup=REMOVE_KEYBOARD,
     )
 
@@ -172,12 +194,33 @@ async def _continue_registration(
             reply_markup=back_button_keyboard(),
         )
         await state.set_state(Registration.waiting_for_age)
+    elif 'gender' in missing_fields:
+        await message.answer(
+            'Укажите ваш пол:',
+            reply_markup=gender_keyboard(),
+        )
+        await state.set_state(Registration.waiting_for_gender)
     elif 'education' in missing_fields:
         await message.answer(
             'Выберите ваш уровень образования:',
             reply_markup=education_keyboard(),
         )
         await state.set_state(Registration.waiting_for_education)
+    elif 'financial' in missing_fields:
+        await message.answer(
+            'Как вы оцениваете своё финансовое положение?',
+            reply_markup=financial_keyboard(),
+        )
+        await state.set_state(Registration.waiting_for_financial)
+    elif 'region' in missing_fields:
+        await message.answer(
+            'Введите ваш регион проживания:',
+            reply_markup=back_button_keyboard(),
+        )
+        await state.set_state(Registration.waiting_for_region)
+    else:
+        # Все поля заполнены — показываем подтверждение
+        await _show_confirmation(message, message.from_user.id, state)
 
 
 # ===== Обработка телефона =====
@@ -271,10 +314,10 @@ async def process_age(message: Message, state: FSMContext):
 
     await message.answer(
         'Супер! 🙏\n\n'
-        'Выберите ваш уровень образования:',
-        reply_markup=education_keyboard(),
+        'Укажите ваш пол:',
+        reply_markup=gender_keyboard(),
     )
-    await state.set_state(Registration.waiting_for_education)
+    await state.set_state(Registration.waiting_for_gender)
 
 
 # ===== Обработка образования =====
@@ -300,14 +343,164 @@ async def process_education(callback: CallbackQuery, state: FSMContext):
 
     await callback.answer('Сохранено!')
     await callback.message.edit_text(
-        f'✅ Регистрация завершена!\n\n'
-        f'Образование: {education}\n\n'
-        f'Теперь перейдём к тестированию. '
-        f'Вам будет предложено ответить на вопросы по логическому мышлению.\n\n'
-        f'Готовы начать? Нажмите кнопку ниже.',
+        f'Образование: {education} ✅\n\n'
+        f'Как вы оцениваете своё финансовое положение?',
+        reply_markup=financial_keyboard(),
+    )
+    await state.set_state(Registration.waiting_for_financial)
+
+
+# ===== Обработка пола =====
+
+@router.callback_query(Registration.waiting_for_gender, F.data.startswith('gender_'))
+async def process_gender(callback: CallbackQuery, state: FSMContext):
+    """Обработка выбора пола."""
+    gender = GENDER_MAP.get(callback.data, '')
+    if not gender:
+        await callback.answer('Неизвестный вариант')
+        return
+
+    telegram_id = callback.from_user.id
+
+    try:
+        sheets_manager.update_user_field(telegram_id, 'gender', gender)
+    except Exception as e:
+        logger.error(f'Ошибка сохранения пола: {e}', exc_info=True)
+        await callback.message.edit_text(
+            '❌ Произошла ошибка при сохранении данных. Попробуйте ещё раз.'
+        )
+        return
+
+    await callback.answer('Сохранено!')
+    await callback.message.edit_text(
+        'Выберите ваш уровень образования:',
+        reply_markup=education_keyboard(),
+    )
+    await state.set_state(Registration.waiting_for_education)
+
+
+# ===== Обработка финансового положения =====
+
+@router.callback_query(Registration.waiting_for_financial, F.data.startswith('fin_'))
+async def process_financial(callback: CallbackQuery, state: FSMContext):
+    """Обработка оценки финансового положения."""
+    financial = FINANCIAL_MAP.get(callback.data, '')
+    if not financial:
+        await callback.answer('Неизвестный вариант')
+        return
+
+    telegram_id = callback.from_user.id
+
+    try:
+        sheets_manager.update_user_field(telegram_id, 'financial', financial)
+    except Exception as e:
+        logger.error(f'Ошибка сохранения финансового положения: {e}', exc_info=True)
+        await callback.message.edit_text(
+            '❌ Произошла ошибка при сохранении данных. Попробуйте ещё раз.'
+        )
+        return
+
+    await callback.answer('Сохранено!')
+    await callback.message.edit_text(
+        'Введите ваш регион проживания:',
+        reply_markup=back_button_keyboard(),
+    )
+    await state.set_state(Registration.waiting_for_region)
+
+
+# ===== Обработка региона =====
+
+@router.message(Registration.waiting_for_region)
+async def process_region(message: Message, state: FSMContext):
+    """Получение региона проживания."""
+    region = message.text.strip() if message.text else ''
+
+    if len(region) < 2:
+        await message.answer('Пожалуйста, введите название региона (минимум 2 символа).')
+        return
+
+    if len(region) > 100:
+        await message.answer('Слишком длинное название. Пожалуйста, сократите до 100 символов.')
+        return
+
+    telegram_id = message.from_user.id
+
+    try:
+        sheets_manager.update_user_field(telegram_id, 'region', region)
+    except Exception as e:
+        logger.error(f'Ошибка сохранения региона: {e}', exc_info=True)
+        await message.answer(
+            '❌ Произошла ошибка при сохранении данных. Попробуйте ещё раз.'
+        )
+        return
+
+    await _show_confirmation(message, telegram_id, state)
+
+
+async def _show_confirmation(target, telegram_id: int, state: FSMContext):
+    """Показать сводку введённых данных для подтверждения.
+
+    target может быть Message или CallbackQuery.message.
+    """
+    try:
+        user = sheets_manager.get_user_by_telegram_id(telegram_id)
+    except Exception as e:
+        logger.error(f'Ошибка чтения данных пользователя: {e}', exc_info=True)
+        await target.answer(
+            '❌ Произошла ошибка при загрузке данных. Попробуйте ещё раз.'
+        )
+        return
+
+    name = user.get('name', '—')
+    age = user.get('age', '—')
+    gender = user.get('gender', '—')
+    education = user.get('education', '—')
+    financial = user.get('financial', '—')
+    region = user.get('region', '—')
+
+    summary = (
+        '📋 Проверьте введённые данные:\n\n'
+        f'👤 Имя: {name}\n'
+        f'🎂 Возраст: {age}\n'
+        f'⚧ Пол: {gender}\n'
+        f'🎓 Образование: {education}\n'
+        f'💰 Финансовое положение: {financial}\n'
+        f'📍 Регион: {region}\n\n'
+        'Всё верно?'
+    )
+
+    await target.answer(summary, reply_markup=confirmation_keyboard())
+    await state.set_state(Registration.waiting_for_confirmation)
+
+
+# ===== Подтверждение данных регистрации =====
+
+@router.callback_query(Registration.waiting_for_confirmation, F.data == 'reg_confirm')
+async def process_confirm(callback: CallbackQuery, state: FSMContext):
+    """Пользователь подтвердил данные — переход к тестированию."""
+    await callback.answer()
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer(
+        '✅ Отлично, данные сохранены!\n\n'
+        'Теперь перейдём к тестированию. '
+        'Вам будет предложено ответить на вопросы по логическому мышлению.\n\n'
+        'Готовы начать? Нажмите кнопку ниже.',
         reply_markup=_start_testing_keyboard(),
     )
     await state.set_state(None)
+
+
+@router.callback_query(Registration.waiting_for_confirmation, F.data == 'reg_edit')
+async def process_edit(callback: CallbackQuery, state: FSMContext):
+    """Пользователь хочет изменить данные — возврат к началу анкеты."""
+    await callback.answer()
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.answer(
+        '✏️ Давайте заполним анкету заново.\n\n'
+        'Введите ваше имя:',
+        reply_markup=back_button_keyboard(),
+    )
+    await state.set_state(Registration.waiting_for_name)
 
 
 def _start_testing_keyboard():
@@ -328,14 +521,41 @@ async def registration_back(callback: CallbackQuery, state: FSMContext):
     current_state = await state.get_state()
 
     if current_state == Registration.waiting_for_age.state:
-        await callback.message.edit_text('Введите ваше имя:')
+        await callback.message.edit_text(
+            'Введите ваше имя:',
+            reply_markup=back_button_keyboard(),
+        )
         await state.set_state(Registration.waiting_for_name)
-    elif current_state == Registration.waiting_for_education.state:
+    elif current_state == Registration.waiting_for_gender.state:
         await callback.message.edit_text(
             'Введите ваш возраст:',
             reply_markup=back_button_keyboard(),
         )
         await state.set_state(Registration.waiting_for_age)
+    elif current_state == Registration.waiting_for_education.state:
+        await callback.message.edit_text(
+            'Укажите ваш пол:',
+            reply_markup=gender_keyboard(),
+        )
+        await state.set_state(Registration.waiting_for_gender)
+    elif current_state == Registration.waiting_for_financial.state:
+        await callback.message.edit_text(
+            'Выберите ваш уровень образования:',
+            reply_markup=education_keyboard(),
+        )
+        await state.set_state(Registration.waiting_for_education)
+    elif current_state == Registration.waiting_for_region.state:
+        await callback.message.edit_text(
+            'Как вы оцениваете своё финансовое положение?',
+            reply_markup=financial_keyboard(),
+        )
+        await state.set_state(Registration.waiting_for_financial)
+    elif current_state == Registration.waiting_for_confirmation.state:
+        await callback.message.edit_text(
+            'Введите ваш регион проживания:',
+            reply_markup=back_button_keyboard(),
+        )
+        await state.set_state(Registration.waiting_for_region)
     elif current_state == Registration.waiting_for_name.state:
         await callback.answer('Это первый шаг регистрации')
     else:

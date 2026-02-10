@@ -31,20 +31,10 @@ def setup_scheduler(sched: AsyncIOScheduler):
     scheduler = sched
 
 
-# ===== Обработка нажатия "Я перешёл на сайт" =====
+# ===== Запуск таймера =====
 
-@router.callback_query(F.data == 'started_website')
-async def on_started_website(callback: CallbackQuery, state: FSMContext):
-    """Пользователь подтвердил переход на сайт — запускаем таймеры."""
-    await callback.answer('Таймер запущен! ⏰')
-
-    telegram_id = callback.from_user.id
-    bot = callback.bot
-
-    # Получаем unique_id пользователя
-    user = sheets_manager.get_user_by_telegram_id(telegram_id)
-    unique_id = user.get('unique_id', '') if user else ''
-
+async def start_timer(bot: Bot, telegram_id: int, unique_id: str):
+    """Запустить таймер и запланировать напоминания."""
     # Записываем таймер в Google Sheets
     try:
         sheets_manager.create_timer(telegram_id, unique_id)
@@ -85,14 +75,6 @@ async def on_started_website(callback: CallbackQuery, state: FSMContext):
             replace_existing=True,
         )
 
-    await callback.message.edit_text(
-        '⏰ Таймер запущен!\n\n'
-        'У вас 60 минут на прохождение тестирования на сайте.\n'
-        'Я буду отправлять напоминания.\n\n'
-        'После завершения нажмите кнопку ниже:',
-        reply_markup=final_completed_keyboard(),
-    )
-
 
 # ===== Функции отправки напоминаний =====
 
@@ -106,9 +88,11 @@ async def _send_first_reminder(bot: Bot, telegram_id: int):
     try:
         await bot.send_message(
             telegram_id,
-            '⏰ НАПОМИНАНИЕ\n\n'
-            'Прошло 30 минут с начала тестирования на сайте.\n\n'
-            'Вы завершили прохождение?',
+            '⏰⏰ Прошло 30 минут\n\n'
+            'Пожалуйста, завершите исследование в ближайшее время, '
+            'если вы еще этого не сделали.\n\n'
+            'Нам очень важны ваши ответы!\n\n'
+            'После завершения необходимо нажать кнопку ниже.',
             reply_markup=reminder_keyboard(),
         )
         sheets_manager.update_timer_field(
@@ -132,7 +116,8 @@ async def _send_second_reminder(bot: Bot, telegram_id: int):
             telegram_id,
             '⏰⏰ ПОСЛЕДНЕЕ НАПОМИНАНИЕ\n\n'
             'Прошло 45 минут с начала тестирования на сайте.\n\n'
-            'Пожалуйста, завершите исследование в ближайшее время.\n\n'
+            'Пожалуйста, завершите исследование в ближайшее время. '
+            'Спасибо вам большое.\n\n'
             'После завершения обязательно нажмите кнопку ниже!',
             reply_markup=reminder_keyboard(),
         )
@@ -158,7 +143,8 @@ async def _send_final_message(bot: Bot, telegram_id: int):
             '⏱ Время истекло\n\n'
             'Спасибо за участие в исследовании!\n\n'
             'Если вы еще не завершили тестирование на сайте, '
-            'пожалуйста, сделайте это как можно скорее.\n\n'
+            'пожалуйста, сделайте это как можно скорее. '
+            'Спасибо огромное за вашу помощь.\n\n'
             'После завершения нажмите:',
             reply_markup=final_completed_keyboard(),
         )
