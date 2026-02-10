@@ -202,16 +202,14 @@ async def _finish_testing(message: Message, state: FSMContext, edit: bool):
     unique_id = user.get('unique_id', '???') if user else '???'
 
     text = (
-        '✅ ТЕСТИРОВАНИЕ В БОТЕ ЗАВЕРШЕНО!\n\n'
-        'Отличная работа! Вы ответили на все вопросы '
-        'по логическому мышлению.\n\n'
+        '✅ ТЕСТИРОВАНИЕ ЗАВЕРШЕНО!\n\n'
+        'Отличная работа! Вы решили все задачи\n\n'
         f'🔑 Ваш логин для сайта: {unique_id}\n\n'
         '📋 ИНСТРУКЦИЯ:\n'
         '1. Перейдите на сайт по ссылке ниже\n'
         f'2. Введите ваш логин: {unique_id}\n'
-        '3. Пройдите тестирование по критическому мышлению\n\n'
-        '⏰ У вас 60 минут на прохождение второй части.\n'
-        'Я буду отправлять вам напоминания.'
+        '3. Пройдите вторую часть исследования\n\n'
+        'Я буду отправлять вам напоминания о необходимости завершения исследования.'
     )
 
     keyboard = website_button(config.WEBSITE_URL)
@@ -221,7 +219,6 @@ async def _finish_testing(message: Message, state: FSMContext, edit: bool):
     await start_timer(message.bot, telegram_id, unique_id)
 
     await message.answer(
-        '⏰ Таймер запущен!\n\n'
         'После завершения тестирования на сайте нажмите кнопку ниже:',
         reply_markup=final_completed_keyboard(),
     )
