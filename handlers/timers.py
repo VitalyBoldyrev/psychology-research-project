@@ -35,6 +35,8 @@ def setup_scheduler(sched: AsyncIOScheduler):
 
 async def start_timer(bot: Bot, telegram_id: int, unique_id: str):
     """Запустить таймер и запланировать напоминания."""
+    logger.info(f'start_timer вызван для {telegram_id}, scheduler={scheduler}')
+
     # Записываем таймер в Google Sheets
     try:
         sheets_manager.create_timer(telegram_id, unique_id)
@@ -75,14 +77,23 @@ async def start_timer(bot: Bot, telegram_id: int, unique_id: str):
             replace_existing=True,
         )
 
+        logger.info(
+            f'Таймеры запланированы для {telegram_id}: '
+            f'{config.FIRST_REMINDER}мин, {config.SECOND_REMINDER}мин, {config.FINAL_MESSAGE}мин'
+        )
+    else:
+        logger.error('scheduler is None — таймеры НЕ запланированы!')
+
 
 # ===== Функции отправки напоминаний =====
 
 async def _send_first_reminder(bot: Bot, telegram_id: int):
     """Отправить первое напоминание (через 30 мин)."""
+    logger.info(f'Отправка 1-го напоминания для {telegram_id}')
     # Проверяем, не завершил ли пользователь уже
     timer = sheets_manager.get_timer(telegram_id)
     if timer and str(timer.get('completed', '')).upper() == 'YES':
+        logger.info(f'Пользователь {telegram_id} уже завершил — пропускаем')
         return
 
     try:
