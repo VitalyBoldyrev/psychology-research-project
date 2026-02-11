@@ -39,7 +39,7 @@ async def start_timer(bot: Bot, telegram_id: int, unique_id: str):
 
     # Записываем таймер в Google Sheets
     try:
-        sheets_manager.create_timer(telegram_id, unique_id)
+        await sheets_manager.async_create_timer(telegram_id, unique_id)
     except Exception as e:
         logger.error(f'Ошибка создания таймера: {e}', exc_info=True)
 
@@ -91,7 +91,7 @@ async def _send_first_reminder(bot: Bot, telegram_id: int):
     """Отправить первое напоминание (через 30 мин)."""
     logger.info(f'Отправка 1-го напоминания для {telegram_id}')
     # Проверяем, не завершил ли пользователь уже
-    timer = sheets_manager.get_timer(telegram_id)
+    timer = await sheets_manager.async_get_timer(telegram_id)
     if timer and str(timer.get('completed', '')).upper() == 'YES':
         logger.info(f'Пользователь {telegram_id} уже завершил — пропускаем')
         return
@@ -106,7 +106,7 @@ async def _send_first_reminder(bot: Bot, telegram_id: int):
             'После завершения необходимо нажать кнопку ниже.',
             reply_markup=reminder_keyboard(),
         )
-        sheets_manager.update_timer_field(
+        await sheets_manager.async_update_timer_field(
             telegram_id, 'first_reminder_sent', 'YES'
         )
     except Exception as e:
@@ -118,7 +118,7 @@ async def _send_first_reminder(bot: Bot, telegram_id: int):
 
 async def _send_second_reminder(bot: Bot, telegram_id: int):
     """Отправить второе напоминание (через 45 мин)."""
-    timer = sheets_manager.get_timer(telegram_id)
+    timer = await sheets_manager.async_get_timer(telegram_id)
     if timer and str(timer.get('completed', '')).upper() == 'YES':
         return
 
@@ -132,7 +132,7 @@ async def _send_second_reminder(bot: Bot, telegram_id: int):
             'После завершения обязательно нажмите кнопку ниже!',
             reply_markup=reminder_keyboard(),
         )
-        sheets_manager.update_timer_field(
+        await sheets_manager.async_update_timer_field(
             telegram_id, 'second_reminder_sent', 'YES'
         )
     except Exception as e:
@@ -144,7 +144,7 @@ async def _send_second_reminder(bot: Bot, telegram_id: int):
 
 async def _send_final_message(bot: Bot, telegram_id: int):
     """Отправить финальное сообщение (через 60 мин)."""
-    timer = sheets_manager.get_timer(telegram_id)
+    timer = await sheets_manager.async_get_timer(telegram_id)
     if timer and str(timer.get('completed', '')).upper() == 'YES':
         return
 
@@ -177,8 +177,8 @@ async def on_site_completed(callback: CallbackQuery, state: FSMContext):
 
     # Обновляем статус в основной таблице
     try:
-        sheets_manager.mark_website_completed(telegram_id)
-        sheets_manager.update_timer_field(telegram_id, 'completed', 'YES')
+        await sheets_manager.async_mark_website_completed(telegram_id)
+        await sheets_manager.async_update_timer_field(telegram_id, 'completed', 'YES')
     except Exception as e:
         logger.error(f'Ошибка обновления статуса: {e}', exc_info=True)
 

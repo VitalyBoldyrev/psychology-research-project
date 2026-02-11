@@ -41,7 +41,7 @@ async def start_testing_flow(
     или при возобновлении.
     """
     try:
-        questions = sheets_manager.get_all_questions()
+        questions = await sheets_manager.async_get_all_questions()
     except Exception as e:
         logger.error(f'Ошибка загрузки вопросов: {e}', exc_info=True)
         await message.edit_text(
@@ -61,7 +61,7 @@ async def start_testing_flow(
 
     if resume:
         # Загружаем существующие ответы
-        user = sheets_manager.get_user_by_telegram_id(telegram_id)
+        user = await sheets_manager.async_get_user_by_telegram_id(telegram_id)
         if user:
             for i, q in enumerate(questions):
                 order = q['order_number']
@@ -77,7 +77,7 @@ async def start_testing_flow(
     # Записываем время начала тестирования (если не возобновление)
     if not resume:
         now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        sheets_manager.update_user_field(telegram_id, 'test_start_time', now)
+        await sheets_manager.async_update_user_field(telegram_id, 'test_start_time', now)
 
     # Сохраняем данные в FSM
     await state.update_data(
@@ -160,7 +160,7 @@ async def _save_and_advance(
 
     # Записываем в Google Sheets
     try:
-        sheets_manager.save_answer(telegram_id, order, answer)
+        await sheets_manager.async_save_answer(telegram_id, order, answer)
     except Exception as e:
         logger.error(f'Ошибка сохранения ответа: {e}', exc_info=True)
 
@@ -193,12 +193,12 @@ async def _finish_testing(message: Message, state: FSMContext, edit: bool):
     # Записываем время завершения
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     try:
-        sheets_manager.update_user_field(telegram_id, 'test_end_time', now)
+        await sheets_manager.async_update_user_field(telegram_id, 'test_end_time', now)
     except Exception as e:
         logger.error(f'Ошибка записи test_end_time: {e}', exc_info=True)
 
     # Получаем unique_id
-    user = sheets_manager.get_user_by_telegram_id(telegram_id)
+    user = await sheets_manager.async_get_user_by_telegram_id(telegram_id)
     unique_id = user.get('unique_id', '???') if user else '???'
 
     text = (

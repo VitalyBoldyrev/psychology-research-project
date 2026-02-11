@@ -6,6 +6,7 @@
 Лист "Timers" — активные таймеры напоминаний.
 """
 
+import asyncio
 import json
 import os
 import time
@@ -489,3 +490,84 @@ def get_statistics() -> dict:
         'completed_site': completed_site,
         'active_questions': active_questions,
     }
+
+
+# ===================== ASYNC-ОБЁРТКИ =====================
+# Все функции выше — синхронные (gspread). Обёртки через
+# asyncio.to_thread() позволяют не блокировать event loop aiogram.
+
+
+async def async_get_user_by_telegram_id(telegram_id: int) -> Optional[dict]:
+    return await asyncio.to_thread(get_user_by_telegram_id, telegram_id)
+
+
+async def async_create_new_user(
+    telegram_id: int, username: Optional[str], phone: Optional[str]
+) -> str:
+    return await asyncio.to_thread(create_new_user, telegram_id, username, phone)
+
+
+async def async_update_user_field(
+    telegram_id: int, field_name: str, value: str
+) -> bool:
+    return await asyncio.to_thread(update_user_field, telegram_id, field_name, value)
+
+
+async def async_save_answer(
+    telegram_id: int, question_number: int, answer: str
+) -> bool:
+    return await asyncio.to_thread(save_answer, telegram_id, question_number, answer)
+
+
+async def async_mark_website_completed(telegram_id: int) -> bool:
+    return await asyncio.to_thread(mark_website_completed, telegram_id)
+
+
+async def async_get_user_progress(telegram_id: int) -> dict:
+    return await asyncio.to_thread(get_user_progress, telegram_id)
+
+
+async def async_get_all_questions(force_refresh: bool = False) -> list[dict]:
+    return await asyncio.to_thread(get_all_questions, force_refresh)
+
+
+async def async_get_all_questions_admin() -> list[dict]:
+    return await asyncio.to_thread(get_all_questions_admin)
+
+
+async def async_add_question(text: str, q_type: str, options: str = '') -> int:
+    return await asyncio.to_thread(add_question, text, q_type, options)
+
+
+async def async_update_question(question_id: int, field: str, value: str) -> bool:
+    return await asyncio.to_thread(update_question, question_id, field, value)
+
+
+async def async_delete_question(question_id: int) -> bool:
+    return await asyncio.to_thread(delete_question, question_id)
+
+
+async def async_activate_question(question_id: int) -> bool:
+    return await asyncio.to_thread(activate_question, question_id)
+
+
+async def async_swap_question_order(question_id: int, direction: str) -> bool:
+    return await asyncio.to_thread(swap_question_order, question_id, direction)
+
+
+async def async_create_timer(telegram_id: int, unique_id: str) -> bool:
+    return await asyncio.to_thread(create_timer, telegram_id, unique_id)
+
+
+async def async_get_timer(telegram_id: int) -> Optional[dict]:
+    return await asyncio.to_thread(get_timer, telegram_id)
+
+
+async def async_update_timer_field(
+    telegram_id: int, field: str, value: str
+) -> bool:
+    return await asyncio.to_thread(update_timer_field, telegram_id, field, value)
+
+
+async def async_get_statistics() -> dict:
+    return await asyncio.to_thread(get_statistics)

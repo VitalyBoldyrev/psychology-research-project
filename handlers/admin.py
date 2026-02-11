@@ -76,7 +76,7 @@ async def admin_stats(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
     try:
-        stats = sheets_manager.get_statistics()
+        stats = await sheets_manager.async_get_statistics()
     except Exception as e:
         logger.error(f'Ошибка получения статистики: {e}', exc_info=True)
         await callback.message.edit_text(
@@ -143,7 +143,7 @@ async def admin_list_questions(callback: CallbackQuery, state: FSMContext):
     page = int(callback.data.split('_')[-1])
 
     try:
-        questions = sheets_manager.get_all_questions_admin()
+        questions = await sheets_manager.async_get_all_questions_admin()
     except Exception as e:
         logger.error(f'Ошибка загрузки вопросов: {e}', exc_info=True)
         await callback.message.edit_text(
@@ -254,7 +254,7 @@ async def _save_new_question(
     options = data.get('new_question_options', '')
 
     try:
-        order = sheets_manager.add_question(q_text, q_type, options)
+        order = await sheets_manager.async_add_question(q_text, q_type, options)
         result_text = (
             f'✅ Вопрос добавлен!\n'
             f'Порядковый номер: {order}\n'
@@ -285,7 +285,7 @@ async def admin_edit_question(callback: CallbackQuery, state: FSMContext):
     question_id = int(callback.data.split('_')[-1])
 
     try:
-        questions = sheets_manager.get_all_questions_admin()
+        questions = await sheets_manager.async_get_all_questions_admin()
         question = next(
             (q for q in questions if q['question_id'] == question_id), None
         )
@@ -353,7 +353,7 @@ async def editq_text_input(message: Message, state: FSMContext):
     question_id = data['editing_question_id']
 
     try:
-        sheets_manager.update_question(question_id, 'question_text', text)
+        await sheets_manager.async_update_question(question_id, 'question_text', text)
         await message.answer(
             '✅ Текст вопроса обновлён!', reply_markup=back_to_admin()
         )
@@ -399,7 +399,7 @@ async def editq_type_save(callback: CallbackQuery, state: FSMContext):
     question_id = data['editing_question_id']
 
     try:
-        sheets_manager.update_question(question_id, 'question_type', q_type)
+        await sheets_manager.async_update_question(question_id, 'question_type', q_type)
 
         if q_type == 'choice':
             await callback.message.edit_text(
@@ -448,7 +448,7 @@ async def editq_options_save(message: Message, state: FSMContext):
     question_id = data['editing_question_id']
 
     try:
-        sheets_manager.update_question(question_id, 'options', options)
+        await sheets_manager.async_update_question(question_id, 'options', options)
         await message.answer(
             '✅ Варианты обновлены!', reply_markup=back_to_admin()
         )
@@ -472,7 +472,7 @@ async def editq_move_up(callback: CallbackQuery, state: FSMContext):
     question_id = int(callback.data.split('_')[-1])
 
     try:
-        success = sheets_manager.swap_question_order(question_id, 'up')
+        success = await sheets_manager.async_swap_question_order(question_id, 'up')
         if success:
             await callback.answer('Вопрос перемещён вверх ⬆️')
         else:
@@ -496,7 +496,7 @@ async def editq_move_down(callback: CallbackQuery, state: FSMContext):
     question_id = int(callback.data.split('_')[-1])
 
     try:
-        success = sheets_manager.swap_question_order(question_id, 'down')
+        success = await sheets_manager.async_swap_question_order(question_id, 'down')
         if success:
             await callback.answer('Вопрос перемещён вниз ⬇️')
         else:
@@ -534,7 +534,7 @@ async def confirm_deactivate(callback: CallbackQuery, state: FSMContext):
     question_id = int(callback.data.split('_')[-1])
 
     try:
-        sheets_manager.delete_question(question_id)
+        await sheets_manager.async_delete_question(question_id)
         await callback.message.edit_text(
             '✅ Вопрос деактивирован.',
             reply_markup=questions_menu(),
@@ -557,7 +557,7 @@ async def editq_activate(callback: CallbackQuery, state: FSMContext):
     question_id = int(callback.data.split('_')[-1])
 
     try:
-        sheets_manager.activate_question(question_id)
+        await sheets_manager.async_activate_question(question_id)
         await callback.message.edit_text(
             '✅ Вопрос активирован!',
             reply_markup=questions_menu(),

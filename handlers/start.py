@@ -70,7 +70,7 @@ async def _handle_start(message: Message, state: FSMContext, telegram_id: int, u
     """Основная логика /start (выполняется под мьютексом)."""
     # Проверяем, есть ли пользователь в таблице
     try:
-        progress = sheets_manager.get_user_progress(telegram_id)
+        progress = await sheets_manager.async_get_user_progress(telegram_id)
     except Exception as e:
         logger.error(f'Ошибка при проверке пользователя: {e}', exc_info=True)
         await message.answer(
@@ -149,7 +149,7 @@ async def _start_registration(
     # Создаём запись в Google Sheets
     try:
         if username:
-            unique_id = sheets_manager.create_new_user(
+            unique_id = await sheets_manager.async_create_new_user(
                 telegram_id, username, None
             )
             await state.update_data(unique_id=unique_id)
@@ -161,7 +161,7 @@ async def _start_registration(
             await state.set_state(Registration.waiting_for_name)
         else:
             # Нет username — запрашиваем телефон
-            unique_id = sheets_manager.create_new_user(
+            unique_id = await sheets_manager.async_create_new_user(
                 telegram_id, None, None
             )
             await state.update_data(unique_id=unique_id)
@@ -237,7 +237,7 @@ async def process_phone(message: Message, state: FSMContext):
         phone = '+' + phone
 
     try:
-        sheets_manager.update_user_field(telegram_id, 'telegram_phone', phone)
+        await sheets_manager.async_update_user_field(telegram_id, 'telegram_phone', phone)
     except Exception as e:
         logger.error(f'Ошибка сохранения телефона: {e}', exc_info=True)
         await message.answer('❌ Произошла ошибка. Попробуйте ещё раз.')
@@ -275,7 +275,7 @@ async def process_name(message: Message, state: FSMContext):
     telegram_id = message.from_user.id
 
     try:
-        sheets_manager.update_user_field(telegram_id, 'name', name)
+        await sheets_manager.async_update_user_field(telegram_id, 'name', name)
     except Exception as e:
         logger.error(f'Ошибка сохранения имени: {e}', exc_info=True)
         await message.answer(
@@ -305,7 +305,7 @@ async def process_age(message: Message, state: FSMContext):
     telegram_id = message.from_user.id
 
     try:
-        sheets_manager.update_user_field(telegram_id, 'age', str(age))
+        await sheets_manager.async_update_user_field(telegram_id, 'age', str(age))
     except Exception as e:
         logger.error(f'Ошибка сохранения возраста: {e}', exc_info=True)
         await message.answer(
@@ -334,7 +334,7 @@ async def process_education(callback: CallbackQuery, state: FSMContext):
     telegram_id = callback.from_user.id
 
     try:
-        sheets_manager.update_user_field(telegram_id, 'education', education)
+        await sheets_manager.async_update_user_field(telegram_id, 'education', education)
     except Exception as e:
         logger.error(f'Ошибка сохранения образования: {e}', exc_info=True)
         await callback.message.edit_text(
@@ -364,7 +364,7 @@ async def process_gender(callback: CallbackQuery, state: FSMContext):
     telegram_id = callback.from_user.id
 
     try:
-        sheets_manager.update_user_field(telegram_id, 'gender', gender)
+        await sheets_manager.async_update_user_field(telegram_id, 'gender', gender)
     except Exception as e:
         logger.error(f'Ошибка сохранения пола: {e}', exc_info=True)
         await callback.message.edit_text(
@@ -393,7 +393,7 @@ async def process_financial(callback: CallbackQuery, state: FSMContext):
     telegram_id = callback.from_user.id
 
     try:
-        sheets_manager.update_user_field(telegram_id, 'financial', financial)
+        await sheets_manager.async_update_user_field(telegram_id, 'financial', financial)
     except Exception as e:
         logger.error(f'Ошибка сохранения финансового положения: {e}', exc_info=True)
         await callback.message.edit_text(
@@ -427,7 +427,7 @@ async def process_region(message: Message, state: FSMContext):
     telegram_id = message.from_user.id
 
     try:
-        sheets_manager.update_user_field(telegram_id, 'region', region)
+        await sheets_manager.async_update_user_field(telegram_id, 'region', region)
     except Exception as e:
         logger.error(f'Ошибка сохранения региона: {e}', exc_info=True)
         await message.answer(
@@ -444,7 +444,7 @@ async def _show_confirmation(target, telegram_id: int, state: FSMContext):
     target может быть Message или CallbackQuery.message.
     """
     try:
-        user = sheets_manager.get_user_by_telegram_id(telegram_id)
+        user = await sheets_manager.async_get_user_by_telegram_id(telegram_id)
     except Exception as e:
         logger.error(f'Ошибка чтения данных пользователя: {e}', exc_info=True)
         await target.answer(
