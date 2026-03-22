@@ -9,11 +9,13 @@ import asyncio
 import sys
 
 from aiogram import Bot
+from aiogram.client.session.aiohttp import AiohttpSession
 import config
 
 
 async def main():
-    bot = Bot(token=config.BOT_TOKEN)
+    session = AiohttpSession(proxy=config.PROXY_URL) if config.PROXY_URL else None
+    bot = Bot(token=config.BOT_TOKEN, session=session)
 
     if len(sys.argv) > 1 and sys.argv[1] == 'delete':
         await bot.delete_webhook()

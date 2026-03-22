@@ -9,6 +9,9 @@ CREDENTIALS_FILE = 'credentials.json'
 WEBSITE_URL = os.getenv('WEBSITE_URL', 'https://example.com/test')
 WEBHOOK_URL = os.getenv('WEBHOOK_URL', '')  # https://USERNAME.pythonanywhere.com
 
+# PythonAnywhere free tier требует proxy для исходящих запросов
+PROXY_URL = os.getenv('PROXY_URL', '')  # http://proxy.server:3128
+
 # Telegram ID администраторов
 ADMIN_IDS = [
     123456789,  # замени на реальные ID

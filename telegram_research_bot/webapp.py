@@ -14,6 +14,7 @@ from flask import Flask, request, jsonify
 from aiogram import Bot, Dispatcher
 from aiogram.types import Update
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.client.session.aiohttp import AiohttpSession
 
 import config
 from handlers import start, testing, admin, timers, common
@@ -25,7 +26,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-bot = Bot(token=config.BOT_TOKEN)
+session = AiohttpSession(proxy=config.PROXY_URL) if config.PROXY_URL else None
+bot = Bot(token=config.BOT_TOKEN, session=session)
 dp = Dispatcher(storage=MemoryStorage())
 
 dp.include_router(start.router)
