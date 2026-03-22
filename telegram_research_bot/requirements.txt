@@ -1,0 +1,6 @@
+aiogram>=3.4,<4
+gspread>=6.0,<7
+google-auth>=2.27,<3
+python-dotenv>=1.0,<2
+APScheduler>=3.10,<4
+flask>=3.0,<4
