@@ -171,6 +171,10 @@ async def _show_rods_intro(message: Message):
         await asyncio.sleep(7)
 
     await message.answer(RODS_OUTRO_TEXT)
+    await asyncio.sleep(0.5)
+
+    summary_path = os.path.join(CARDS_DIR, 'photo9.jpg')
+    await message.answer_photo(photo=FSInputFile(summary_path))
     await asyncio.sleep(0.3)
 
 
@@ -186,6 +190,10 @@ async def _show_flowers_intro(message: Message):
         await asyncio.sleep(7)
 
     await message.answer(FLOWERS_OUTRO_TEXT)
+    await asyncio.sleep(0.5)
+
+    summary_path = os.path.join(FLOWERS_DIR, 'photo7.png')
+    await message.answer_photo(photo=FSInputFile(summary_path))
     await asyncio.sleep(0.3)
 
 

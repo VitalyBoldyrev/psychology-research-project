@@ -8,6 +8,7 @@ import asyncio
 import logging
 import sys
 import threading
+from collections import OrderedDict
 
 from flask import Flask, request, jsonify
 from aiogram import Bot, Dispatcher
@@ -39,6 +40,10 @@ _loop = asyncio.new_event_loop()
 _loop_started = False
 _loop_lock = threading.Lock()
 
+_seen_updates: OrderedDict[int, None] = OrderedDict()
+_seen_lock = threading.Lock()
+_SEEN_MAX = 500
+
 
 def _ensure_loop_running():
     """Start the background event loop lazily (survives uWSGI fork)."""
@@ -54,6 +59,17 @@ def _ensure_loop_running():
         logger.info('Background event loop started')
 
 
+def _is_duplicate(update_id: int) -> bool:
+    """Check and register update_id; return True if already seen."""
+    with _seen_lock:
+        if update_id in _seen_updates:
+            return True
+        _seen_updates[update_id] = None
+        while len(_seen_updates) > _SEEN_MAX:
+            _seen_updates.popitem(last=False)
+        return False
+
+
 # Flask app
 app = Flask(__name__)
 
@@ -64,13 +80,16 @@ WEBHOOK_PATH = f'/webhook/{config.BOT_TOKEN}'
 def webhook():
     _ensure_loop_running()
     data = request.json
-    logger.info(f'Получен update: {data.get("update_id", "?")}')
+    update_id = data.get('update_id', 0)
+    logger.info(f'Получен update: {update_id}')
+
+    if _is_duplicate(update_id):
+        logger.info(f'Дубликат update {update_id}, пропускаем')
+        return jsonify({'ok': True})
+
     try:
         update = Update.model_validate(data, context={"bot": bot})
-        future = asyncio.run_coroutine_threadsafe(
-            dp.feed_update(bot, update), _loop
-        )
-        future.result(timeout=120)
+        asyncio.run_coroutine_threadsafe(dp.feed_update(bot, update), _loop)
     except Exception as e:
         logger.error(f'Ошибка обработки update: {e}', exc_info=True)
     return jsonify({'ok': True})
